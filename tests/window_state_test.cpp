@@ -60,3 +60,83 @@ TEST_CASE("initial_geometry no saved data returns physical defaults") {
     CHECK(g.has_position == false);
     CHECK(g.maximized == false);
 }
+
+TEST_CASE("initial_geometry valid saved size returned as-is") {
+    Settings::WindowGeometry saved{};
+    saved.width = 1920; saved.height = 1080;
+    auto g = initial_geometry(saved, nullptr);
+    CHECK(g.size.w == 1920);
+    CHECK(g.size.h == 1080);
+}
+
+TEST_CASE("initial_geometry negative x sets has_position=false") {
+    Settings::WindowGeometry saved{};
+    saved.width = 1280; saved.height = 720;
+    saved.x = -1; saved.y = 100;
+    auto g = initial_geometry(saved, nullptr);
+    CHECK(g.has_position == false);
+}
+
+TEST_CASE("initial_geometry negative y sets has_position=false") {
+    Settings::WindowGeometry saved{};
+    saved.width = 1280; saved.height = 720;
+    saved.x = 100; saved.y = -1;
+    auto g = initial_geometry(saved, nullptr);
+    CHECK(g.has_position == false);
+}
+
+TEST_CASE("initial_geometry valid position sets has_position=true") {
+    Settings::WindowGeometry saved{};
+    saved.width = 1280; saved.height = 720;
+    saved.x = 50; saved.y = 80;
+    auto g = initial_geometry(saved, nullptr);
+    CHECK(g.has_position == true);
+    CHECK(g.position.x == 50);
+    CHECK(g.position.y == 80);
+}
+
+TEST_CASE("initial_geometry maximized flag propagated") {
+    Settings::WindowGeometry saved{};
+    saved.width = 1280; saved.height = 720;
+    saved.maximized = true;
+    auto g = initial_geometry(saved, nullptr);
+    CHECK(g.maximized == true);
+}
+
+TEST_CASE("initial_geometry zero-width saved falls back to defaults") {
+    Settings::WindowGeometry saved{};
+    saved.width = 0; saved.height = 720;
+    auto g = initial_geometry(saved, nullptr);
+    CHECK(g.size.w == Settings::WindowGeometry::kDefaultPhysicalWidth);
+    CHECK(g.size.h == Settings::WindowGeometry::kDefaultPhysicalHeight);
+}
+
+TEST_CASE("initial_geometry zero-height saved falls back to defaults") {
+    Settings::WindowGeometry saved{};
+    saved.width = 1280; saved.height = 0;
+    auto g = initial_geometry(saved, nullptr);
+    CHECK(g.size.w == Settings::WindowGeometry::kDefaultPhysicalWidth);
+    CHECK(g.size.h == Settings::WindowGeometry::kDefaultPhysicalHeight);
+}
+
+TEST_CASE("initial_geometry clamp_fn is called when provided") {
+    Settings::WindowGeometry saved{};
+    saved.width = 1280; saved.height = 720;
+    bool called = false;
+    auto clamp = [&](int* w, int* h, int* x, int* y) {
+        called = true;
+        *w = 800; *h = 600; *x = -1; *y = -1;
+    };
+    auto g = initial_geometry(saved, clamp);
+    CHECK(called == true);
+    CHECK(g.size.w == 800);
+    CHECK(g.size.h == 600);
+    CHECK(g.has_position == false);
+}
+
+TEST_CASE("initial_geometry clamp_fn nullptr is safe") {
+    Settings::WindowGeometry saved{};
+    saved.width = 1280; saved.height = 720;
+    auto g = initial_geometry(saved, nullptr);
+    CHECK(g.size.w == 1280);
+}
