@@ -10,3 +10,15 @@ target_include_directories(jellyfin_api_test PRIVATE
 )
 
 add_test(NAME jellyfin_api_test COMMAND jellyfin_api_test)
+
+add_executable(window_state_test
+    window_state_test.cpp
+    ${CMAKE_SOURCE_DIR}/src/window_state.cpp
+)
+
+target_include_directories(window_state_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/third_party/doctest
+)
+
+add_test(NAME window_state_test COMMAND window_state_test)
