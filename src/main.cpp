@@ -727,28 +727,17 @@ int main(int argc, char* argv[]) {
     // the eventual restore, but don't overwrite mw/mh — the fullscreen surface
     // size is authoritative for browser creation.
     {
-        using WG = Settings::WindowGeometry;
-        const auto& saved = Settings::instance().windowGeometry();
-        float saved_scale = saved.scale > 0.f ? saved.scale : WG::kDefaultScale;
-        int logical_w = saved.logical_width  > 0 ? saved.logical_width
-                                                 : WG::kDefaultLogicalWidth;
-        int logical_h = saved.logical_height > 0 ? saved.logical_height
-                                                 : WG::kDefaultLogicalHeight;
-        if (display_hidpi_scale > 0.0 &&
-            std::fabs(display_hidpi_scale - saved_scale) >= 0.01) {
-            int new_pw = static_cast<int>(
-                std::lround(logical_w * display_hidpi_scale));
-            int new_ph = static_cast<int>(
-                std::lround(logical_h * display_hidpi_scale));
-            std::string geom_str = std::to_string(new_pw) + "x"
-                                 + std::to_string(new_ph);
-            LOG_INFO(LOG_MAIN,
-                     "[FLOW] scale {:.3f} -> {:.3f}, resize to {}",
-                     saved_scale, display_hidpi_scale, geom_str.c_str());
+        if (auto corrected = window_state::corrected_size_for_scale(
+                Settings::instance().windowGeometry(),
+                display_hidpi_scale)) {
+            std::string geom_str = std::to_string(corrected->w) + "x"
+                                 + std::to_string(corrected->h);
+            LOG_INFO(LOG_MAIN, "[FLOW] scale mismatch, resize to {}",
+                     geom_str.c_str());
             g_mpv.SetGeometry(geom_str);
             if (!fs_flag) {
-                mw = new_pw;
-                mh = new_ph;
+                mw = corrected->w;
+                mh = corrected->h;
             }
         }
         mpv::set_window_pixels(static_cast<int>(mw), static_cast<int>(mh));
