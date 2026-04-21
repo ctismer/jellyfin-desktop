@@ -266,3 +266,110 @@ TEST_CASE("save_geometry maximized preserves saved windowed size and sets maximi
     CHECK(r.height == 600);
     CHECK(r.maximized == true);
 }
+
+TEST_CASE("save_geometry windowed saves window_size pw/ph") {
+    Settings::WindowGeometry prev{};
+    SaveInputs in{};
+    in.fullscreen = false; in.maximized = false;
+    in.window_size = {1920, 1080}; in.osd_fallback = {0, 0};
+    in.scale = 1.0f; in.query_position = nullptr;
+    auto r = save_geometry(prev, in);
+    CHECK(r.width  == 1920);
+    CHECK(r.height == 1080);
+    CHECK(r.maximized == false);
+}
+
+TEST_CASE("save_geometry windowed falls back to osd_fallback when window_size w is zero") {
+    Settings::WindowGeometry prev{};
+    SaveInputs in{};
+    in.fullscreen = false; in.maximized = false;
+    in.window_size = {0, 1080}; in.osd_fallback = {1280, 720};
+    in.scale = 1.0f; in.query_position = nullptr;
+    auto r = save_geometry(prev, in);
+    CHECK(r.width  == 1280);
+    CHECK(r.height == 720);
+}
+
+TEST_CASE("save_geometry windowed falls back to osd_fallback when window_size h is zero") {
+    Settings::WindowGeometry prev{};
+    SaveInputs in{};
+    in.fullscreen = false; in.maximized = false;
+    in.window_size = {1920, 0}; in.osd_fallback = {1280, 720};
+    in.scale = 1.0f; in.query_position = nullptr;
+    auto r = save_geometry(prev, in);
+    CHECK(r.width  == 1280);
+    CHECK(r.height == 720);
+}
+
+TEST_CASE("save_geometry windowed both zero does not overwrite previous geometry") {
+    Settings::WindowGeometry prev{};
+    prev.width = 800; prev.height = 600; prev.scale = 1.0f;
+    SaveInputs in{};
+    in.fullscreen = false; in.maximized = false;
+    in.window_size = {0, 0}; in.osd_fallback = {0, 0};
+    in.scale = 1.0f; in.query_position = nullptr;
+    auto r = save_geometry(prev, in);
+    CHECK(r.width  == 800);
+    CHECK(r.height == 600);
+}
+
+TEST_CASE("save_geometry windowed stores position when query_position returns a value") {
+    Settings::WindowGeometry prev{};
+    SaveInputs in{};
+    in.fullscreen = false; in.maximized = false;
+    in.window_size = {1280, 720}; in.scale = 1.0f;
+    in.query_position = []() -> std::optional<PhysicalPoint> {
+        return PhysicalPoint{100, 200};
+    };
+    auto r = save_geometry(prev, in);
+    CHECK(r.x == 100);
+    CHECK(r.y == 200);
+}
+
+TEST_CASE("save_geometry windowed does not store position when query_position returns nullopt") {
+    Settings::WindowGeometry prev{};
+    prev.x = 50; prev.y = 60;
+    SaveInputs in{};
+    in.fullscreen = false; in.maximized = false;
+    in.window_size = {1280, 720}; in.scale = 1.0f;
+    in.query_position = []() -> std::optional<PhysicalPoint> {
+        return std::nullopt;
+    };
+    auto r = save_geometry(prev, in);
+    // freshly constructed geom defaults x=-1, y=-1
+    CHECK(r.x == Settings::WindowGeometry{}.x);
+    CHECK(r.y == Settings::WindowGeometry{}.y);
+}
+
+TEST_CASE("save_geometry windowed query_position nullptr is safe") {
+    Settings::WindowGeometry prev{};
+    SaveInputs in{};
+    in.fullscreen = false; in.maximized = false;
+    in.window_size = {1280, 720}; in.scale = 1.0f;
+    in.query_position = nullptr;
+    auto r = save_geometry(prev, in);
+    CHECK(r.width == 1280);
+}
+
+TEST_CASE("save_geometry windowed scale<=0 clamped to 1.0") {
+    Settings::WindowGeometry prev{};
+    SaveInputs in{};
+    in.fullscreen = false; in.maximized = false;
+    in.window_size = {1280, 720}; in.scale = 0.0f;
+    in.query_position = nullptr;
+    auto r = save_geometry(prev, in);
+    CHECK(r.scale == doctest::Approx(1.0f));
+    CHECK(r.logical_width  == 1280);
+    CHECK(r.logical_height == 720);
+}
+
+TEST_CASE("save_geometry windowed logical dims computed as lround(pw/scale)") {
+    Settings::WindowGeometry prev{};
+    SaveInputs in{};
+    in.fullscreen = false; in.maximized = false;
+    in.window_size = {1920, 1080}; in.scale = 2.0f;
+    in.query_position = nullptr;
+    auto r = save_geometry(prev, in);
+    CHECK(r.logical_width  == 960);
+    CHECK(r.logical_height == 540);
+}
